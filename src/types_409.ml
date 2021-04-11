@@ -12,7 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+[@@@warning "-9"]
 (* Representation of types and declarations *)
 
 open Asttypes
