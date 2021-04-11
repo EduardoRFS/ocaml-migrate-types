@@ -1,0 +1,16 @@
+{
+  "name": "ocaml-migrate-types",
+  "esy": {
+    "build": "dune build -p ocaml-migrate-types",
+    "install": "esy-installer ocaml-migrate-types.install"
+  },
+  "dependencies": {
+    "ocaml": "4.10.x",
+    "@opam/dune": "*",
+    "@opam/ocaml-migrate-parsetree": "*"
+  },
+  "devDependencies": {
+    "@opam/ocaml-lsp-server": "*",
+    "@opam/ocamlformat": "*"
+  }
+}
