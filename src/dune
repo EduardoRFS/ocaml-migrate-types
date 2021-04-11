@@ -1,0 +1,3 @@
+(library
+ (name migrate_types)
+ (libraries ocaml-migrate-parsetree compiler-libs.common))
