@@ -1,0 +1,5 @@
+(executable
+ (name make_copies)
+ (libraries ppxlib)
+ (preprocess
+  (pps ppxlib.metaquot)))
