@@ -1,3 +1,59 @@
+module From = Types_409
+module To = Types_410
+
+module Variance = struct
+  (* CHECK: this needs to be checked on every update *)
+  external copy_t : From.Variance.t -> To.Variance.t = "%identity"
+
+  let copy_f : From.Variance.f -> To.Variance.f = function
+    | May_pos -> May_pos
+    | May_neg -> May_neg
+    | May_weak -> May_weak
+    | Inj -> Inj
+    | Pos -> Pos
+    | Neg -> Neg
+    | Inv -> Inv
+end
+
+module Concr = struct
+  let copy_t : From.Concr.t -> To.Concr.t =
+   fun param ->
+    let module Unsafe = struct
+      (* CHECK: check this every update *)
+      external copy_t : From.Concr.t -> To.Concr.t = "%identity"
+    end in
+    (* this guarantees the elt is the same *)
+    let v : From.Concr.elt list = [] in
+    let _v : To.Concr.elt list = v in
+    Unsafe.copy_t param
+end
+
+module Vars = struct
+  let copy_t : 'a From.Vars.t -> 'a To.Vars.t =
+   fun param ->
+    let module Unsafe = struct
+      (* CHECK: check this every update *)
+      external copy_t : 'a From.Vars.t -> 'a To.Vars.t = "%identity"
+    end in
+    (* this guarantees the key is the same *)
+    let v : From.Vars.key list = [] in
+    let _v : To.Vars.key list = v in
+    Unsafe.copy_t param
+end
+
+module Meths = struct
+  let copy_t : 'a From.Meths.t -> 'a To.Meths.t =
+   fun param ->
+    let module Unsafe = struct
+      (* CHECK: check this every update *)
+      external copy_t : 'a From.Meths.t -> 'a To.Meths.t = "%identity"
+    end in
+    (* this guarantees the key is the same *)
+    let v : From.Meths.key list = [] in
+    let _v : To.Meths.key list = v in
+    Unsafe.copy_t param
+end
+
 let rec copy_label_description : From.label_description -> To.label_description
     =
  fun {
@@ -141,7 +197,10 @@ and copy_module_type : From.module_type -> To.module_type = function
   | Mty_signature param_1 -> Mty_signature (copy_signature param_1)
   | Mty_functor (param_1, param_2, param_3) ->
       Mty_functor
-        (param_1, Option.map copy_module_type param_2, copy_module_type param_3)
+        ( (match param_2 with
+          | Some mty -> Named (Some param_1, copy_module_type mty)
+          | None -> Unit),
+          copy_module_type param_3 )
   | Mty_alias param_1 -> Mty_alias param_1
 
 and copy_visibility : From.visibility -> To.visibility = function
@@ -162,7 +221,7 @@ and copy_class_type_declaration :
     clty_params = List.map copy_type_expr param_1;
     clty_type = copy_class_type param_2;
     clty_path = param_3;
-    clty_variance = param_4;
+    clty_variance = List.map Variance.copy_t param_4;
     clty_loc = param_5;
     clty_attributes = param_6;
   }
@@ -182,7 +241,7 @@ and copy_class_declaration : From.class_declaration -> To.class_declaration =
     cty_type = copy_class_type param_2;
     cty_path = param_3;
     cty_new = Option.map copy_type_expr param_4;
-    cty_variance = param_5;
+    cty_variance = List.map Variance.copy_t param_5;
     cty_loc = param_6;
     cty_attributes = param_7;
   }
@@ -196,9 +255,16 @@ and copy_class_signature : From.class_signature -> To.class_signature =
      } ->
   {
     csig_self = copy_type_expr param_1;
-    csig_vars = param_2;
-    csig_concr = param_3;
-    csig_inher = param_4;
+    csig_vars =
+      Vars.copy_t
+        (From.Vars.map
+           (fun (mut, virt, typ) -> (mut, virt, copy_type_expr typ))
+           param_2);
+    csig_concr = Concr.copy_t param_3;
+    csig_inher =
+      List.map
+        (fun (path, typs) -> (path, List.map copy_type_expr typs))
+        param_4;
   }
 
 and copy_class_type : From.class_type -> To.class_type = function
@@ -237,8 +303,13 @@ and copy_extension_constructor :
   }
 
 and copy_unboxed_status : From.unboxed_status -> To.unboxed_status =
- fun { unboxed = param_1; default = param_2 } ->
-  { unboxed = param_1; default = param_2 }
+ fun param ->
+  let module Unsafe = struct
+    (* CHECK: check this every update *)
+    external copy_unboxed_status : From.unboxed_status -> To.unboxed_status
+      = "%identity"
+  end in
+  Unsafe.copy_unboxed_status param
 
 and copy_constructor_arguments :
     From.constructor_arguments -> To.constructor_arguments = function
@@ -317,28 +388,38 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
     type_kind = copy_type_kind param_3;
     type_private = param_4;
     type_manifest = Option.map copy_type_expr param_5;
-    type_variance = param_6;
+    type_variance = List.map Variance.copy_t param_6;
     type_is_newtype = param_7;
     type_expansion_scope = param_8;
     type_loc = param_9;
     type_attributes = param_10;
-    type_immediate = param_11;
+    (* TODO: check this, it makes sense to me, but who knows *)
+    type_immediate = (if param_11 then Type_immediacy.Always else Unknown);
     type_unboxed = copy_unboxed_status param_12;
   }
-
-and copy_value_unbound_reason :
-    From.value_unbound_reason -> To.value_unbound_reason = function
-  | Val_unbound_instance_variable -> Val_unbound_instance_variable
-  | Val_unbound_ghost_recursive -> Val_unbound_ghost_recursive
 
 and copy_value_kind : From.value_kind -> To.value_kind = function
   | Val_reg -> Val_reg
   | Val_prim param_1 -> Val_prim param_1
   | Val_ivar (param_1, param_2) -> Val_ivar (param_1, param_2)
   | Val_self (param_1, param_2, param_3, param_4) ->
-      Val_self (param_1, param_2, param_3, copy_type_expr param_4)
+      Val_self
+        ( ref
+            (Meths.copy_t
+               (From.Meths.map
+                  (fun (ident, typ) -> (ident, copy_type_expr typ))
+                  !param_1)),
+          ref
+            (Vars.copy_t
+               (From.Vars.map
+                  (fun (ident, mut, virt, typ) ->
+                    (ident, mut, virt, copy_type_expr typ))
+                  !param_2)),
+          param_3,
+          copy_type_expr param_4 )
   | Val_anc (param_1, param_2) -> Val_anc (param_1, param_2)
-  | Val_unbound param_1 -> Val_unbound (copy_value_unbound_reason param_1)
+  (* TODO: I think this never happens, but I'm not sure on it *)
+  | Val_unbound _param_1 -> assert false
 
 and copy_value_description : From.value_description -> To.value_description =
  fun {
@@ -360,7 +441,7 @@ and copy_commutable : From.commutable -> To.commutable = function
   | Clink param_1 -> Clink (ref (copy_commutable !param_1))
 
 and copy_field_kind : From.field_kind -> To.field_kind = function
-  | Fvar param_1 -> Fvar param_1
+  | Fvar param_1 -> Fvar (ref (Option.map copy_field_kind !param_1))
   | Fpresent -> Fpresent
   | Fabsent -> Fabsent
 
@@ -378,7 +459,11 @@ and copy_abbrev_memo : From.abbrev_memo -> To.abbrev_memo = function
 and copy_row_field : From.row_field -> To.row_field = function
   | Rpresent param_1 -> Rpresent (Option.map copy_type_expr param_1)
   | Reither (param_1, param_2, param_3, param_4) ->
-      Reither (param_1, List.map copy_type_expr param_2, param_3, param_4)
+      Reither
+        ( param_1,
+          List.map copy_type_expr param_2,
+          param_3,
+          ref (Option.map copy_row_field !param_4) )
   | Rabsent -> Rabsent
 
 and copy_row_desc : From.row_desc -> To.row_desc =
@@ -391,12 +476,19 @@ and copy_row_desc : From.row_desc -> To.row_desc =
        row_name = param_6;
      } ->
   {
-    row_fields = param_1;
+    row_fields =
+      List.map
+        (fun (label, row_field) -> (label, copy_row_field row_field))
+        param_1;
     row_more = copy_type_expr param_2;
     row_bound = param_3;
     row_closed = param_4;
-    row_fixed = param_5;
-    row_name = param_6;
+    (* TODO: check if this is okay, seems like explanation is only for error message *)
+    row_fixed = (if param_5 then Some Rigid else None);
+    row_name =
+      Option.map
+        (fun (path, typ) -> (path, List.map copy_type_expr typ))
+        param_6;
   }
 
 and copy_type_desc : From.type_desc -> To.type_desc = function
@@ -413,7 +505,13 @@ and copy_type_desc : From.type_desc -> To.type_desc = function
         ( param_1,
           List.map copy_type_expr param_2,
           ref (copy_abbrev_memo !param_3) )
-  | Tobject (param_1, param_2) -> Tobject (copy_type_expr param_1, param_2)
+  | Tobject (param_1, param_2) ->
+      Tobject
+        ( copy_type_expr param_1,
+          ref
+            (Option.map
+               (fun (path, typ) -> (path, List.map copy_type_expr typ))
+               !param_2) )
   | Tfield (param_1, param_2, param_3, param_4) ->
       Tfield
         ( param_1,
@@ -438,3 +536,5 @@ and copy_type_expr : From.type_expr -> To.type_expr =
     scope = param_3;
     id = param_4;
   }
+
+and copy_signature signature = List.map copy_signature_item signature
