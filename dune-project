@@ -11,4 +11,4 @@
    (and
     (>= "4.10.0")
     (< "4.13.0")))
-  ocaml-migrate-parstree))
+  ocaml-migrate-parsetree))
