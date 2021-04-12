@@ -5,7 +5,7 @@
     "install": "esy-installer ocaml-migrate-types.install"
   },
   "dependencies": {
-    "ocaml": "4.10.x",
+    "ocaml": ">= 4.8.x",
     "@opam/dune": "*",
     "@opam/ocaml-migrate-parsetree": "*"
   },
