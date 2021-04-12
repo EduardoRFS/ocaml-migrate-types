@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Type_immediacy = Type_immediacy_410
+
 (** {0 Representation of types and declarations} *)
 
 (** [Types] defines the representation of types and declarations (that is, the

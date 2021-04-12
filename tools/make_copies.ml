@@ -39,9 +39,10 @@ module From_core_type = struct
       ]
 
   let function_to_apply constr =
-    List.find_map
-      (fun (typ, f) -> if typ = constr then Some f else None)
+    List.find_opt
+      (fun (typ, _f) -> typ = constr)
       [ ("array", "Array.map"); ("list", "List.map"); ("option", "Option.map") ]
+    |> Option.map snd
 
   let should_apply constr = function_to_apply constr <> None
 

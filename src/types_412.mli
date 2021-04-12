@@ -12,7 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+module Type_immediacy = Type_immediacy_412
 (** {0 Representation of types and declarations} *)
 
 (** [Types] defines the representation of types and declarations (that is, the

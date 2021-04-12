@@ -1,4 +1,8 @@
 (library
  (name migrate_types)
  (public_name ocaml-migrate-types)
+ (modules_without_implementation
+  type_immediacy_410
+  type_immediacy_411
+  type_immediacy_412)
  (libraries ocaml-migrate-parsetree compiler-libs.common))

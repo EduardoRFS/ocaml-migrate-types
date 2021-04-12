@@ -13,6 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 [@@@ocaml.warning "-9"]
+module Type_immediacy = Type_immediacy_412
 (* Representation of types and declarations *)
 
 open Asttypes

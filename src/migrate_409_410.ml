@@ -394,7 +394,7 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
     type_loc = param_9;
     type_attributes = param_10;
     (* TODO: check this, it makes sense to me, but who knows *)
-    type_immediate = (if param_11 then Type_immediacy.Always else Unknown);
+    type_immediate = (if param_11 then Type_immediacy_410.Always else Unknown);
     type_unboxed = copy_unboxed_status param_12;
   }
 
