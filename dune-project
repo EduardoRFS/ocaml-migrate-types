@@ -11,4 +11,5 @@
    (and
     (>= "4.08.0")
     (< "4.13.0")))
-  ocaml-migrate-parsetree))
+  ocaml-migrate-parsetree
+  ppx_optcomp))
