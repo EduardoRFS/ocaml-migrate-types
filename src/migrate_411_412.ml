@@ -2,8 +2,7 @@ module From = Types_411
 module To = Types_412
 
 module Uid = struct
-  (* CHECK: this needs to be checked on every update *)
-  external copy_t : From.Uid.t -> To.Uid.t = "%identity"
+  let copy_t : From.Uid.t -> To.Uid.t = fun v -> v
 end
 
 module Variance = struct
