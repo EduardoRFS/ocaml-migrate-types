@@ -29,41 +29,17 @@ end
 
 module Concr = struct
   let copy_t : From.Concr.t -> To.Concr.t =
-   fun param ->
-    let module Unsafe = struct
-      (* CHECK: check this every update *)
-      external copy_t : From.Concr.t -> To.Concr.t = "%identity"
-    end in
-    (* this guarantees the elt is the same *)
-    let v : From.Concr.elt list = [] in
-    let _v : To.Concr.elt list = v in
-    Unsafe.copy_t param
+   fun param -> From.Concr.to_seq param |> To.Concr.of_seq
 end
 
 module Vars = struct
   let copy_t : 'a From.Vars.t -> 'a To.Vars.t =
-   fun param ->
-    let module Unsafe = struct
-      (* CHECK: check this every update *)
-      external copy_t : 'a From.Vars.t -> 'a To.Vars.t = "%identity"
-    end in
-    (* this guarantees the key is the same *)
-    let v : From.Vars.key list = [] in
-    let _v : To.Vars.key list = v in
-    Unsafe.copy_t param
+   fun param -> From.Vars.bindings param |> List.to_seq |> To.Vars.of_seq
 end
 
 module Meths = struct
   let copy_t : 'a From.Meths.t -> 'a To.Meths.t =
-   fun param ->
-    let module Unsafe = struct
-      (* CHECK: check this every update *)
-      external copy_t : 'a From.Meths.t -> 'a To.Meths.t = "%identity"
-    end in
-    (* this guarantees the key is the same *)
-    let v : From.Meths.key list = [] in
-    let _v : To.Meths.key list = v in
-    Unsafe.copy_t param
+   fun param -> From.Meths.bindings param |> List.to_seq |> To.Meths.of_seq
 end
 
 module Asttypes = struct
@@ -79,6 +55,13 @@ end
 
 module Parsetree = struct
   let copy_attributes = Migrate_parsetree.Migrate_411_412.copy_attributes
+end
+
+module Type_immediacy = struct
+  let copy_t : Type_immediacy_411.t -> Type_immediacy_412.t = function
+    | Unknown -> Unknown
+    | Always -> Always
+    | Always_on_64bits -> Always_on_64bits
 end
 
 let rec copy_label_description : From.label_description -> To.label_description
@@ -456,7 +439,7 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
     type_expansion_scope = param_9;
     type_loc = param_10;
     type_attributes = Parsetree.copy_attributes param_11;
-    type_immediate = param_12;
+    type_immediate = Type_immediacy.copy_t param_12;
     type_unboxed = copy_unboxed_status param_13;
     type_uid = Uid.copy_t param_14;
   }

@@ -17,41 +17,17 @@ end
 
 module Concr = struct
   let copy_t : From.Concr.t -> To.Concr.t =
-   fun param ->
-    let module Unsafe = struct
-      (* CHECK: check this every update *)
-      external copy_t : From.Concr.t -> To.Concr.t = "%identity"
-    end in
-    (* this guarantees the elt is the same *)
-    let v : From.Concr.elt list = [] in
-    let _v : To.Concr.elt list = v in
-    Unsafe.copy_t param
+   fun param -> From.Concr.to_seq param |> To.Concr.of_seq
 end
 
 module Vars = struct
   let copy_t : 'a From.Vars.t -> 'a To.Vars.t =
-   fun param ->
-    let module Unsafe = struct
-      (* CHECK: check this every update *)
-      external copy_t : 'a From.Vars.t -> 'a To.Vars.t = "%identity"
-    end in
-    (* this guarantees the key is the same *)
-    let v : From.Vars.key list = [] in
-    let _v : To.Vars.key list = v in
-    Unsafe.copy_t param
+   fun param -> From.Vars.bindings param |> List.to_seq |> To.Vars.of_seq
 end
 
 module Meths = struct
   let copy_t : 'a From.Meths.t -> 'a To.Meths.t =
-   fun param ->
-    let module Unsafe = struct
-      (* CHECK: check this every update *)
-      external copy_t : 'a From.Meths.t -> 'a To.Meths.t = "%identity"
-    end in
-    (* this guarantees the key is the same *)
-    let v : From.Meths.key list = [] in
-    let _v : To.Meths.key list = v in
-    Unsafe.copy_t param
+   fun param -> From.Meths.bindings param |> List.to_seq |> To.Meths.of_seq
 end
 
 module Asttypes = struct
@@ -415,7 +391,7 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
     type_loc = param_9;
     type_attributes = Parsetree.copy_attributes param_10;
     (* TODO: check this, it makes sense to me, but who knows *)
-    type_immediate = (if param_11 then Type_immediacy_410.Always else Unknown);
+    type_immediate = (if param_11 then Type_immediacy.Always else Unknown);
     type_unboxed = copy_unboxed_status param_12;
   }
 

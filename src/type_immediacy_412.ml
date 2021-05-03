@@ -17,7 +17,7 @@ include Type_immediacy
 
 (** Immediacy status of a type *)
 
-type t = Type_immediacy_411.t =
+type t =
   | Unknown
       (** We don't know anything *)
   | Always
