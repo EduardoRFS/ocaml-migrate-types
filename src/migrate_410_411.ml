@@ -318,12 +318,11 @@ and copy_extension_constructor :
 
 and copy_unboxed_status : From.unboxed_status -> To.unboxed_status =
  fun param ->
-  let module Unsafe = struct
-    (* CHECK: check this every update *)
-    external copy_unboxed_status : From.unboxed_status -> To.unboxed_status
-      = "%identity"
-  end in
-  Unsafe.copy_unboxed_status param
+  match (param.unboxed, param.default) with
+  | false, false -> To.unboxed_false_default_false
+  | false, true -> To.unboxed_false_default_true
+  | true, false -> To.unboxed_true_default_false
+  | true, true -> To.unboxed_true_default_true
 
 and copy_constructor_arguments :
     From.constructor_arguments -> To.constructor_arguments = function
