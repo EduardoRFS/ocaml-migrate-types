@@ -13,6 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 [@@@ocaml.warning "-9"]
+[%%if ocaml_version = (4, 10, 0)]
+include Types
+[%%else]
+open Migrate_parsetree.Ast_410
+
 module Type_immediacy = Type_immediacy_410
 (* Representation of types and declarations *)
 
@@ -378,3 +383,4 @@ let signature_item_id = function
   | Sig_class (id, _, _, _)
   | Sig_class_type (id, _, _, _)
     -> id
+[%%endif]

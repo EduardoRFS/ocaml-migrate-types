@@ -11,30 +11,24 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[%%if ocaml_version = (4, 11, 0)]
+include Type_immediacy
+[%%else];;
 
 (** Immediacy status of a type *)
 
-type t = Type_immediacy_411.t =
-  | Unknown
-  (** We don't know anything *)
+type t = Type_immediacy_410.t =
+  | Unknown 
+      (** We don't know anything *)
   | Always
-  (** We know for sure that values of this type are always immediate *)
+      (** We know for sure that values of this type are always immediate *)
   | Always_on_64bits
-  (** We know for sure that values of this type are always immediate
+      (** We know for sure that values of this type are always immediate
       on 64 bit platforms. For other platforms, we know nothing. *)
 
-module Violation : sig
-  type t = Type_immediacy_411.Violation.t =
+module Violation = struct
+  type t = Type_immediacy_410.Violation.t =
     | Not_always_immediate
     | Not_always_immediate_on_64bits
 end
-
-(** [coerce t ~as_] returns [Ok ()] iff [t] can be seen as type
-    immediacy [as_]. For instance, [Always] can be seen as
-    [Always_on_64bits] but the opposite is not true. Return [Error _]
-    if the coercion is not possible. *)
-val coerce : t -> as_:t -> (unit, Violation.t) result
-
-(** Return the immediateness of a type as indicated by the user via
-    attributes *)
-val of_attributes : Parsetree.attributes -> t
+[%%endif]

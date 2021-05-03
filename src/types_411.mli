@@ -12,6 +12,11 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[%%if ocaml_version = (4, 11, 0)]
+include module type of Types
+[%%else]
+open Migrate_parsetree.Ast_411
+
 module Type_immediacy = Type_immediacy_411
 (** {0 Representation of types and declarations} *)
 
@@ -575,3 +580,4 @@ type label_description =
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
+[%%endif]

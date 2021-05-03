@@ -66,6 +66,21 @@ module Meths = struct
     Unsafe.copy_t param
 end
 
+module Asttypes = struct
+  open Migrate_parsetree
+  let copy_mutable_flag = Migrate_411_412.copy_mutable_flag
+
+  let copy_private_flag = Migrate_411_412.copy_private_flag
+
+  let copy_arg_label = Migrate_411_412.copy_arg_label
+
+  let copy_virtual_flag = Migrate_411_412.copy_virtual_flag
+end
+
+module Parsetree = struct
+  let copy_attributes = Migrate_parsetree.Migrate_411_412.copy_attributes
+end
+
 let rec copy_label_description : From.label_description -> To.label_description
     =
  fun {
@@ -85,13 +100,13 @@ let rec copy_label_description : From.label_description -> To.label_description
     lbl_name = param_1;
     lbl_res = copy_type_expr param_2;
     lbl_arg = copy_type_expr param_3;
-    lbl_mut = param_4;
+    lbl_mut = Asttypes.copy_mutable_flag param_4;
     lbl_pos = param_5;
     lbl_all = Array.map copy_label_description param_6;
     lbl_repres = copy_record_representation param_7;
-    lbl_private = param_8;
+    lbl_private = Asttypes.copy_private_flag param_8;
     lbl_loc = param_9;
-    lbl_attributes = param_10;
+    lbl_attributes = Parsetree.copy_attributes param_10;
     lbl_uid = Uid.copy_t param_11;
   }
 
@@ -131,9 +146,9 @@ and copy_constructor_description :
     cstr_nonconsts = param_8;
     cstr_normal = param_9;
     cstr_generalized = param_10;
-    cstr_private = param_11;
+    cstr_private = Asttypes.copy_private_flag param_11;
     cstr_loc = param_12;
-    cstr_attributes = param_13;
+    cstr_attributes = Parsetree.copy_attributes param_13;
     cstr_inlined = Option.map copy_type_declaration param_14;
     cstr_uid = Uid.copy_t param_15;
   }
@@ -158,7 +173,7 @@ and copy_modtype_declaration :
      } ->
   {
     mtd_type = Option.map copy_module_type param_1;
-    mtd_attributes = param_2;
+    mtd_attributes = Parsetree.copy_attributes param_2;
     mtd_loc = param_3;
     mtd_uid = Uid.copy_t param_4;
   }
@@ -172,7 +187,7 @@ and copy_module_declaration : From.module_declaration -> To.module_declaration =
      } ->
   {
     md_type = copy_module_type param_1;
-    md_attributes = param_2;
+    md_attributes = Parsetree.copy_attributes param_2;
     md_loc = param_3;
     md_uid = Uid.copy_t param_4;
   }
@@ -253,7 +268,7 @@ and copy_class_type_declaration :
     clty_path = param_3;
     clty_variance = List.map Variance.copy_t param_4;
     clty_loc = param_5;
-    clty_attributes = param_6;
+    clty_attributes = Parsetree.copy_attributes param_6;
     clty_uid = Uid.copy_t param_7;
   }
 
@@ -275,7 +290,7 @@ and copy_class_declaration : From.class_declaration -> To.class_declaration =
     cty_new = Option.map copy_type_expr param_4;
     cty_variance = List.map Variance.copy_t param_5;
     cty_loc = param_6;
-    cty_attributes = param_7;
+    cty_attributes = Parsetree.copy_attributes param_7;
     cty_uid = Uid.copy_t param_8;
   }
 
@@ -291,7 +306,10 @@ and copy_class_signature : From.class_signature -> To.class_signature =
     csig_vars =
       Vars.copy_t
         (From.Vars.map
-           (fun (mut, virt, typ) -> (mut, virt, copy_type_expr typ))
+           (fun (mut, virt, typ) ->
+             ( Asttypes.copy_mutable_flag mut,
+               Asttypes.copy_virtual_flag virt,
+               copy_type_expr typ ))
            param_2);
     csig_concr = Concr.copy_t param_3;
     csig_inher =
@@ -306,7 +324,10 @@ and copy_class_type : From.class_type -> To.class_type = function
         (param_1, List.map copy_type_expr param_2, copy_class_type param_3)
   | Cty_signature param_1 -> Cty_signature (copy_class_signature param_1)
   | Cty_arrow (param_1, param_2, param_3) ->
-      Cty_arrow (param_1, copy_type_expr param_2, copy_class_type param_3)
+      Cty_arrow
+        ( Asttypes.copy_arg_label param_1,
+          copy_type_expr param_2,
+          copy_class_type param_3 )
 
 and copy_type_transparence : From.type_transparence -> To.type_transparence =
   function
@@ -331,9 +352,9 @@ and copy_extension_constructor :
     ext_type_params = List.map copy_type_expr param_2;
     ext_args = copy_constructor_arguments param_3;
     ext_ret_type = Option.map copy_type_expr param_4;
-    ext_private = param_5;
+    ext_private = Asttypes.copy_private_flag param_5;
     ext_loc = param_6;
-    ext_attributes = param_7;
+    ext_attributes = Parsetree.copy_attributes param_7;
     ext_uid = Uid.copy_t param_8;
   }
 
@@ -366,7 +387,7 @@ and copy_constructor_declaration :
     cd_args = copy_constructor_arguments param_2;
     cd_res = Option.map copy_type_expr param_3;
     cd_loc = param_4;
-    cd_attributes = param_5;
+    cd_attributes = Parsetree.copy_attributes param_5;
     cd_uid = Uid.copy_t param_6;
   }
 
@@ -381,10 +402,10 @@ and copy_label_declaration : From.label_declaration -> To.label_declaration =
      } ->
   {
     ld_id = param_1;
-    ld_mutable = param_2;
+    ld_mutable = Asttypes.copy_mutable_flag param_2;
     ld_type = copy_type_expr param_3;
     ld_loc = param_4;
-    ld_attributes = param_5;
+    ld_attributes = Parsetree.copy_attributes param_5;
     ld_uid = Uid.copy_t param_6;
   }
 
@@ -427,14 +448,14 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
     type_params = List.map copy_type_expr param_1;
     type_arity = param_2;
     type_kind = copy_type_kind param_3;
-    type_private = param_4;
+    type_private = Asttypes.copy_private_flag param_4;
     type_manifest = Option.map copy_type_expr param_5;
     type_variance = List.map Variance.copy_t param_6;
     type_separability = List.map Separability.copy_t param_7;
     type_is_newtype = param_8;
     type_expansion_scope = param_9;
     type_loc = param_10;
-    type_attributes = param_11;
+    type_attributes = Parsetree.copy_attributes param_11;
     type_immediate = param_12;
     type_unboxed = copy_unboxed_status param_13;
     type_uid = Uid.copy_t param_14;
@@ -443,7 +464,8 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
 and copy_value_kind : From.value_kind -> To.value_kind = function
   | Val_reg -> Val_reg
   | Val_prim param_1 -> Val_prim param_1
-  | Val_ivar (param_1, param_2) -> Val_ivar (param_1, param_2)
+  | Val_ivar (param_1, param_2) ->
+      Val_ivar (Asttypes.copy_mutable_flag param_1, param_2)
   | Val_self (param_1, param_2, param_3, param_4) ->
       Val_self
         ( ref
@@ -455,7 +477,10 @@ and copy_value_kind : From.value_kind -> To.value_kind = function
             (Vars.copy_t
                (From.Vars.map
                   (fun (ident, mut, virt, typ) ->
-                    (ident, mut, virt, copy_type_expr typ))
+                    ( ident,
+                      Asttypes.copy_mutable_flag mut,
+                      Asttypes.copy_virtual_flag virt,
+                      copy_type_expr typ ))
                   !param_2)),
           param_3,
           copy_type_expr param_4 )
@@ -473,7 +498,7 @@ and copy_value_description : From.value_description -> To.value_description =
     val_type = copy_type_expr param_1;
     val_kind = copy_value_kind param_2;
     val_loc = param_3;
-    val_attributes = param_4;
+    val_attributes = Parsetree.copy_attributes param_4;
     val_uid = Uid.copy_t param_5;
   }
 
@@ -491,7 +516,7 @@ and copy_abbrev_memo : From.abbrev_memo -> To.abbrev_memo = function
   | Mnil -> Mnil
   | Mcons (param_1, param_2, param_3, param_4, param_5) ->
       Mcons
-        ( param_1,
+        ( Asttypes.copy_private_flag param_1,
           param_2,
           copy_type_expr param_3,
           copy_type_expr param_4,
@@ -543,7 +568,7 @@ and copy_type_desc : From.type_desc -> To.type_desc = function
   | Tvar param_1 -> Tvar param_1
   | Tarrow (param_1, param_2, param_3, param_4) ->
       Tarrow
-        ( param_1,
+        ( Asttypes.copy_arg_label param_1,
           copy_type_expr param_2,
           copy_type_expr param_3,
           copy_commutable param_4 )

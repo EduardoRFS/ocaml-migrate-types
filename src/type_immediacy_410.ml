@@ -11,20 +11,22 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[%%if ocaml_version >= (4, 10, 0)]
+include Type_immediacy
+[%%else];;
 
 (** Immediacy status of a type *)
 
 type t =
   | Unknown
-  (** We don't know anything *)
+      (** We don't know anything *)
   | Always
-  (** We know for sure that values of this type are always immediate *)
+      (** We know for sure that values of this type are always immediate *)
   | Always_on_64bits
-  (** We know for sure that values of this type are always immediate
+      (** We know for sure that values of this type are always immediate
       on 64 bit platforms. For other platforms, we know nothing. *)
 
-module Violation : sig
-  type t =
-    | Not_always_immediate
-    | Not_always_immediate_on_64bits
+module Violation = struct
+  type t = Not_always_immediate | Not_always_immediate_on_64bits
 end
+[%%endif]

@@ -13,6 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 [@@@warning "-9"]
+[%%if ocaml_version = (4, 08, 0)]
+include Types
+[%%else]
+open Migrate_parsetree.Ast_408
+
 (* Representation of types and declarations *)
 
 open Asttypes
@@ -377,3 +382,4 @@ let signature_item_id = function
   | Sig_class (id, _, _, _)
   | Sig_class_type (id, _, _, _)
     -> id
+[%%endif]
