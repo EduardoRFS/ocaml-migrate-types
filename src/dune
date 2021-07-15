@@ -1,6 +1,6 @@
 (library
  (name migrate_types)
  (public_name ocaml-migrate-types)
- (libraries ocaml-migrate-parsetree compiler-libs.common)
+ (libraries ocaml-migrate-parsetree)
  (preprocess
   (pps ppx_optcomp)))
