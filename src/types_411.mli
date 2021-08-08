@@ -12,7 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[%%if ocaml_version = (4, 11, 0)]
+[%%if ocaml_version >= (4, 11, 0) && ocaml_version < (4, 12, 0)]
 include module type of Types
 [%%else]
 open Migrate_parsetree.Ast_411

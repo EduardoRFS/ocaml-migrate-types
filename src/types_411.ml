@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 [@@@ocaml.warning "-9"]
-[%%if ocaml_version = (4, 11, 0)]
+[%%if ocaml_version >= (4, 11, 0) && ocaml_version < (4, 12, 0)]
 include Types
 [%%else]
 module Asttypes = Migrate_parsetree.Ast_411.Asttypes

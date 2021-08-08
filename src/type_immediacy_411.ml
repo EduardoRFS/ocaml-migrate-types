@@ -11,7 +11,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[%%if ocaml_version = (4, 11, 0)]
+[%%if ocaml_version >= (4, 11, 0) && ocaml_version < (4, 12, 0)]
 include Type_immediacy
 [%%else];;
 

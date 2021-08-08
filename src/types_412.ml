@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 [@@@ocaml.warning "-9"]
-[%%if ocaml_version = (4, 12, 0)]
+[%%if ocaml_version >= (4, 12, 0) && ocaml_version < (4, 13, 0)]
 include Types
 [%%else]
 module Ocaml_config = Config

@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 [@@@warning "-9"]
-[%%if ocaml_version = (4, 08, 0)]
+[%%if ocaml_version >= (4, 08, 0) && ocaml_version < (4, 09, 0)]
 include Types
 [%%else]
 open Migrate_parsetree.Ast_408
