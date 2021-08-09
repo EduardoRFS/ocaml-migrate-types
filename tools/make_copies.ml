@@ -169,14 +169,14 @@ end
 let file = Sys.argv.(1)
 
 let signature = Ocaml_common.Pparse.parse_interface ~tool_name:"<none>" file
-(* 
-let () =
-  Format.printf "%a\n%!" Ocaml_common.Printast.implementation
-    [%str let x : int -> int = fun a -> a]
+(*
+   let () =
+     Format.printf "%a\n%!" Ocaml_common.Printast.implementation
+       [%str let x : int -> int = fun a -> a]
 
-let () =
-  Format.printf "%a\n%!" Pprintast.structure_item
-    [%stri let x : int -> int = fun a -> a] *)
+   let () =
+     Format.printf "%a\n%!" Pprintast.structure_item
+       [%stri let x : int -> int = fun a -> a] *)
 
 let () =
   Format.printf "%a\n%!" Pprintast.structure_item
