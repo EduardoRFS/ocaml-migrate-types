@@ -250,7 +250,7 @@ end
 
 module Uid : sig
   [%%if ocaml_version >= (4, 12, 0)]
-  type t = Types_412.Uid.t
+  type t = Types_412.Types.Uid.t
   [%%else]
   type t
   [%%endif]

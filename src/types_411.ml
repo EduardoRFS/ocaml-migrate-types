@@ -90,7 +90,7 @@ end
 (* *)
 
 [%%if ocaml_version >= (4, 12, 0)]
-module Uid = Types_412.Uid
+module Uid = Types_412.Types.Uid
 [%%else]
 module Uid = struct
   type t =
