@@ -13,8 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 [%%if ocaml_version >= (4, 08, 0) && ocaml_version < (4, 09, 0)]
-include module type of Types
+module Types = Types
 [%%else]
+module Types : sig
 open Migrate_parsetree.Ast_408
 
 (** {0 Representation of types and declarations} *)
@@ -515,4 +516,5 @@ type label_description =
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
+end
 [%%endif]

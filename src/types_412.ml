@@ -14,8 +14,9 @@
 (**************************************************************************)
 [@@@ocaml.warning "-9"]
 [%%if ocaml_version >= (4, 12, 0) && ocaml_version < (4, 13, 0)]
-include Types
+module Types = Types
 [%%else]
+module Types = struct
 module Ocaml_config = Config
 open Migrate_parsetree.Ast_412
 
@@ -89,7 +90,7 @@ end
 (* *)
 
 [%%if ocaml_version < (4, 12, 0)]
-module Uid = Types_411.Uid
+module Uid = Types_411.Types.Uid
 [%%else]
 module Uid = struct
   type t =
@@ -487,4 +488,5 @@ let signature_item_id = function
   | Sig_class (id, _, _, _)
   | Sig_class_type (id, _, _, _)
     -> id
+end
 [%%endif]

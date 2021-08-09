@@ -1,5 +1,5 @@
-module From = Types_411
-module To = Types_412
+module From = Types_411.Types
+module To = Types_412.Types
 
 module Uid = struct
   let copy_t : From.Uid.t -> To.Uid.t = fun v -> v

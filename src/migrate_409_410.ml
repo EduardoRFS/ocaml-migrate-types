@@ -1,5 +1,5 @@
-module From = Types_409
-module To = Types_410
+module From = Types_409.Types
+module To = Types_410.Types
 
 module Variance = struct
   (* CHECK: this needs to be checked on every update *)

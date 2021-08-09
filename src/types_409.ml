@@ -14,8 +14,9 @@
 (**************************************************************************)
 [@@@warning "-9"]
 [%%if ocaml_version >= (4, 09, 0) && ocaml_version < (4, 10, 0)]
-include Types
+module Types = Types
 [%%else]
+module Types = struct
 open Migrate_parsetree.Ast_409
 
 (* Representation of types and declarations *)
@@ -382,4 +383,5 @@ let signature_item_id = function
   | Sig_class (id, _, _, _)
   | Sig_class_type (id, _, _, _)
     -> id
+end
 [%%endif]

@@ -13,8 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 [%%if ocaml_version >= (4, 12, 0) && ocaml_version < (4, 13, 0)]
-include module type of Types
+module Types = Types
 [%%else]
+module Types : sig
 open Migrate_parsetree.Ast_412
 
 module Type_immediacy = Type_immediacy_412
@@ -249,7 +250,7 @@ end
 
 module Uid : sig
   [%%if ocaml_version < (4, 12, 0)]
-  type t = Types_411.Uid.t
+  type t = Types_411.Types.Uid.t
   [%%else]
   type t
   [%%endif]
@@ -593,4 +594,5 @@ type label_description =
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
+end
 [%%endif]
