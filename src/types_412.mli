@@ -251,12 +251,12 @@ end
 module Uid : sig
   [%%if ocaml_version < (4, 12, 0)]
   type t = Types_411.Types.Uid.t
-  [%%endif]
-
+  [%%else]
   [%%if ocaml_version >= (4, 13, 0)]
   type t = Types_413.Types.Uid.t
   [%%else]
   type t
+  [%%endif]
   [%%endif]
 
   val reinit : unit -> unit

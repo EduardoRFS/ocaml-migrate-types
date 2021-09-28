@@ -91,8 +91,7 @@ end
 
 [%%if ocaml_version < (4, 12, 0)]
 module Uid = Types_411.Types.Uid
-[%%endif]
-
+[%%else]
 [%%if ocaml_version >= (4, 13, 0)]
 module Uid = Types_413.Types.Uid
 [%%else]
@@ -145,6 +144,7 @@ module Uid = struct
     | Item _ -> true
     | _ -> false
 end
+[%%endif]
 [%%endif]
 
 (* Maps of methods and instance variables *)
