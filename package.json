@@ -11,7 +11,12 @@
     "@opam/ppx_optcomp": "*"
   },
   "devDependencies": {
+    "ocaml": "4.13.x",
     "@opam/ocaml-lsp-server": "*",
     "@opam/ocamlformat": "*"
+  },
+  "resolutions": {
+    "@opam/ocaml-lsp-server": "kit-ty-kate/ocaml-lsp:ocaml-lsp-server.opam#68420e2fb87c1f86b20a3549876fcdb9a3623979",
+    "ocaml": "esy-ocaml/ocaml#493ce73d2bbf4605dab2815a5286fad4077dd9e0"
   }
 }
