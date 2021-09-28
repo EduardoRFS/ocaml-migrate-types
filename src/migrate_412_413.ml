@@ -1,3 +1,70 @@
+type x = 'a
+  constraint 'a = Types_413.Types.Uid.t constraint 'a = Types_412.Types.Uid.t
+module From = Types_412.Types
+module To = Types_413.Types
+
+module Uid = struct
+  let copy_t : From.Uid.t -> To.Uid.t = fun v -> v
+end
+
+module Variance = struct
+  (* CHECK: this needs to be checked on every update *)
+  external copy_t : From.Variance.t -> To.Variance.t = "%identity"
+
+  let copy_f : From.Variance.f -> To.Variance.f = function
+    | May_pos -> May_pos
+    | May_neg -> May_neg
+    | May_weak -> May_weak
+    | Inj -> Inj
+    | Pos -> Pos
+    | Neg -> Neg
+    | Inv -> Inv
+end
+
+module Separability = struct
+  let copy_t : From.Separability.t -> To.Separability.t = function
+    | Ind -> Ind
+    | Sep -> Sep
+    | Deepsep -> Deepsep
+end
+
+module Concr = struct
+  let copy_t : From.Concr.t -> To.Concr.t =
+   fun param -> From.Concr.to_seq param |> To.Concr.of_seq
+end
+
+module Vars = struct
+  let copy_t : 'a From.Vars.t -> 'a To.Vars.t =
+   fun param -> From.Vars.bindings param |> List.to_seq |> To.Vars.of_seq
+end
+
+module Meths = struct
+  let copy_t : 'a From.Meths.t -> 'a To.Meths.t =
+   fun param -> From.Meths.bindings param |> List.to_seq |> To.Meths.of_seq
+end
+
+module Asttypes = struct
+  open Migrate_parsetree
+  let copy_mutable_flag = Migrate_412_413.copy_mutable_flag
+
+  let copy_private_flag = Migrate_412_413.copy_private_flag
+
+  let copy_arg_label = Migrate_412_413.copy_arg_label
+
+  let copy_virtual_flag = Migrate_412_413.copy_virtual_flag
+end
+
+module Parsetree = struct
+  let copy_attributes = Migrate_parsetree.Migrate_412_413.copy_attributes
+end
+
+module Type_immediacy = struct
+  let copy_t : Type_immediacy_412.t -> Type_immediacy_413.t = function
+    | Unknown -> Unknown
+    | Always -> Always
+    | Always_on_64bits -> Always_on_64bits
+end
+
 let rec copy_label_description : From.label_description -> To.label_description
     =
  fun {
@@ -17,13 +84,13 @@ let rec copy_label_description : From.label_description -> To.label_description
     lbl_name = param_1;
     lbl_res = copy_type_expr param_2;
     lbl_arg = copy_type_expr param_3;
-    lbl_mut = param_4;
+    lbl_mut = Asttypes.copy_mutable_flag param_4;
     lbl_pos = param_5;
     lbl_all = Array.map copy_label_description param_6;
     lbl_repres = copy_record_representation param_7;
-    lbl_private = param_8;
+    lbl_private = Asttypes.copy_private_flag param_8;
     lbl_loc = param_9;
-    lbl_attributes = param_10;
+    lbl_attributes = Parsetree.copy_attributes param_10;
     lbl_uid = Uid.copy_t param_11;
   }
 
@@ -63,9 +130,9 @@ and copy_constructor_description :
     cstr_nonconsts = param_8;
     cstr_normal = param_9;
     cstr_generalized = param_10;
-    cstr_private = param_11;
+    cstr_private = Asttypes.copy_private_flag param_11;
     cstr_loc = param_12;
-    cstr_attributes = param_13;
+    cstr_attributes = Parsetree.copy_attributes param_13;
     cstr_inlined = Option.map copy_type_declaration param_14;
     cstr_uid = Uid.copy_t param_15;
   }
@@ -90,7 +157,7 @@ and copy_modtype_declaration :
      } ->
   {
     mtd_type = Option.map copy_module_type param_1;
-    mtd_attributes = param_2;
+    mtd_attributes = Parsetree.copy_attributes param_2;
     mtd_loc = param_3;
     mtd_uid = Uid.copy_t param_4;
   }
@@ -104,7 +171,7 @@ and copy_module_declaration : From.module_declaration -> To.module_declaration =
      } ->
   {
     md_type = copy_module_type param_1;
-    md_attributes = param_2;
+    md_attributes = Parsetree.copy_attributes param_2;
     md_loc = param_3;
     md_uid = Uid.copy_t param_4;
   }
@@ -183,9 +250,9 @@ and copy_class_type_declaration :
     clty_params = List.map copy_type_expr param_1;
     clty_type = copy_class_type param_2;
     clty_path = param_3;
-    clty_variance = param_4;
+    clty_variance = List.map Variance.copy_t param_4;
     clty_loc = param_5;
-    clty_attributes = param_6;
+    clty_attributes = Parsetree.copy_attributes param_6;
     clty_uid = Uid.copy_t param_7;
   }
 
@@ -205,9 +272,9 @@ and copy_class_declaration : From.class_declaration -> To.class_declaration =
     cty_type = copy_class_type param_2;
     cty_path = param_3;
     cty_new = Option.map copy_type_expr param_4;
-    cty_variance = param_5;
+    cty_variance = List.map Variance.copy_t param_5;
     cty_loc = param_6;
-    cty_attributes = param_7;
+    cty_attributes = Parsetree.copy_attributes param_7;
     cty_uid = Uid.copy_t param_8;
   }
 
@@ -220,9 +287,19 @@ and copy_class_signature : From.class_signature -> To.class_signature =
      } ->
   {
     csig_self = copy_type_expr param_1;
-    csig_vars = param_2;
-    csig_concr = param_3;
-    csig_inher = param_4;
+    csig_vars =
+      Vars.copy_t
+        (From.Vars.map
+           (fun (mut, virt, typ) ->
+             ( Asttypes.copy_mutable_flag mut,
+               Asttypes.copy_virtual_flag virt,
+               copy_type_expr typ ))
+           param_2);
+    csig_concr = Concr.copy_t param_3;
+    csig_inher =
+      List.map
+        (fun (path, typs) -> (path, List.map copy_type_expr typs))
+        param_4;
   }
 
 and copy_class_type : From.class_type -> To.class_type = function
@@ -231,7 +308,10 @@ and copy_class_type : From.class_type -> To.class_type = function
         (param_1, List.map copy_type_expr param_2, copy_class_type param_3)
   | Cty_signature param_1 -> Cty_signature (copy_class_signature param_1)
   | Cty_arrow (param_1, param_2, param_3) ->
-      Cty_arrow (param_1, copy_type_expr param_2, copy_class_type param_3)
+      Cty_arrow
+        ( Asttypes.copy_arg_label param_1,
+          copy_type_expr param_2,
+          copy_class_type param_3 )
 
 and copy_type_transparence : From.type_transparence -> To.type_transparence =
   function
@@ -256,9 +336,9 @@ and copy_extension_constructor :
     ext_type_params = List.map copy_type_expr param_2;
     ext_args = copy_constructor_arguments param_3;
     ext_ret_type = Option.map copy_type_expr param_4;
-    ext_private = param_5;
+    ext_private = Asttypes.copy_private_flag param_5;
     ext_loc = param_6;
-    ext_attributes = param_7;
+    ext_attributes = Parsetree.copy_attributes param_7;
     ext_uid = Uid.copy_t param_8;
   }
 
@@ -282,7 +362,7 @@ and copy_constructor_declaration :
     cd_args = copy_constructor_arguments param_2;
     cd_res = Option.map copy_type_expr param_3;
     cd_loc = param_4;
-    cd_attributes = param_5;
+    cd_attributes = Parsetree.copy_attributes param_5;
     cd_uid = Uid.copy_t param_6;
   }
 
@@ -297,17 +377,12 @@ and copy_label_declaration : From.label_declaration -> To.label_declaration =
      } ->
   {
     ld_id = param_1;
-    ld_mutable = param_2;
+    ld_mutable = Asttypes.copy_mutable_flag param_2;
     ld_type = copy_type_expr param_3;
     ld_loc = param_4;
-    ld_attributes = param_5;
+    ld_attributes = Parsetree.copy_attributes param_5;
     ld_uid = Uid.copy_t param_6;
   }
-
-and copy_variant_representation :
-    From.variant_representation -> To.variant_representation = function
-  | Variant_regular -> Variant_regular
-  | Variant_unboxed -> Variant_unboxed
 
 and copy_record_representation :
     From.record_representation -> To.record_representation = function
@@ -317,12 +392,23 @@ and copy_record_representation :
   | Record_inlined param_1 -> Record_inlined param_1
   | Record_extension param_1 -> Record_extension param_1
 
-and copy_type_kind : From.type_kind -> To.type_kind = function
+and copy_type_decl_kind : unboxed:bool -> From.type_kind -> To.type_decl_kind =
+ fun ~unboxed -> function
   | Type_abstract -> Type_abstract
   | Type_record (param_1, param_2) ->
-      Type_record (param_1, copy_record_representation param_2)
-  | Type_variant (param_1, param_2) ->
-      Type_variant (param_1, copy_variant_representation param_2)
+      (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
+      (match (unboxed, param_2) with
+      | true, Record_unboxed _ -> ()
+      | true, _ | false, Record_unboxed _ -> assert false
+      | false, _ -> ());
+      Type_record
+        ( List.map copy_label_declaration param_1,
+          copy_record_representation param_2 )
+  | Type_variant param_1 ->
+      Type_variant
+        ( List.map copy_constructor_declaration param_1,
+          (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
+          if unboxed then Variant_unboxed else Variant_regular )
   | Type_open -> Type_open
 
 and copy_type_declaration : From.type_declaration -> To.type_declaration =
@@ -339,46 +425,50 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
        type_loc = param_10;
        type_attributes = param_11;
        type_immediate = param_12;
-       type_unboxed_default = param_13;
+       type_unboxed = param_13;
        type_uid = param_14;
      } ->
   {
     type_params = List.map copy_type_expr param_1;
     type_arity = param_2;
-    type_kind = copy_type_decl_kind param_3;
-    type_private = param_4;
+    type_kind = copy_type_decl_kind ~unboxed:param_13.unboxed param_3;
+    type_private = Asttypes.copy_private_flag param_4;
     type_manifest = Option.map copy_type_expr param_5;
-    type_variance = param_6;
-    type_separability = param_7;
+    type_variance = List.map Variance.copy_t param_6;
+    type_separability = List.map Separability.copy_t param_7;
     type_is_newtype = param_8;
     type_expansion_scope = param_9;
     type_loc = param_10;
-    type_attributes = param_11;
-    type_immediate = param_12;
-    type_unboxed_default = param_13;
+    type_attributes = Parsetree.copy_attributes param_11;
+    type_immediate = Type_immediacy.copy_t param_12;
+    (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
+    type_unboxed_default = param_13.default;
     type_uid = Uid.copy_t param_14;
   }
-
-and copy_t : From.t -> To.t = function
-  | Ind -> Ind
-  | Sep -> Sep
-  | Deepsep -> Deepsep
-
-and copy_f : From.f -> To.f = function
-  | May_pos -> May_pos
-  | May_neg -> May_neg
-  | May_weak -> May_weak
-  | Inj -> Inj
-  | Pos -> Pos
-  | Neg -> Neg
-  | Inv -> Inv
 
 and copy_value_kind : From.value_kind -> To.value_kind = function
   | Val_reg -> Val_reg
   | Val_prim param_1 -> Val_prim param_1
-  | Val_ivar (param_1, param_2) -> Val_ivar (param_1, param_2)
+  | Val_ivar (param_1, param_2) ->
+      Val_ivar (Asttypes.copy_mutable_flag param_1, param_2)
   | Val_self (param_1, param_2, param_3, param_4) ->
-      Val_self (param_1, param_2, param_3, copy_type_expr param_4)
+      Val_self
+        ( ref
+            (Meths.copy_t
+               (From.Meths.map
+                  (fun (ident, typ) -> (ident, copy_type_expr typ))
+                  !param_1)),
+          ref
+            (Vars.copy_t
+               (From.Vars.map
+                  (fun (ident, mut, virt, typ) ->
+                    ( ident,
+                      Asttypes.copy_mutable_flag mut,
+                      Asttypes.copy_virtual_flag virt,
+                      copy_type_expr typ ))
+                  !param_2)),
+          param_3,
+          copy_type_expr param_4 )
   | Val_anc (param_1, param_2) -> Val_anc (param_1, param_2)
 
 and copy_value_description : From.value_description -> To.value_description =
@@ -393,7 +483,7 @@ and copy_value_description : From.value_description -> To.value_description =
     val_type = copy_type_expr param_1;
     val_kind = copy_value_kind param_2;
     val_loc = param_3;
-    val_attributes = param_4;
+    val_attributes = Parsetree.copy_attributes param_4;
     val_uid = Uid.copy_t param_5;
   }
 
@@ -403,7 +493,7 @@ and copy_commutable : From.commutable -> To.commutable = function
   | Clink param_1 -> Clink (ref (copy_commutable !param_1))
 
 and copy_field_kind : From.field_kind -> To.field_kind = function
-  | Fvar param_1 -> Fvar param_1
+  | Fvar param_1 -> Fvar (ref (Option.map copy_field_kind !param_1))
   | Fpresent -> Fpresent
   | Fabsent -> Fabsent
 
@@ -411,7 +501,7 @@ and copy_abbrev_memo : From.abbrev_memo -> To.abbrev_memo = function
   | Mnil -> Mnil
   | Mcons (param_1, param_2, param_3, param_4, param_5) ->
       Mcons
-        ( param_1,
+        ( Asttypes.copy_private_flag param_1,
           param_2,
           copy_type_expr param_3,
           copy_type_expr param_4,
@@ -421,7 +511,11 @@ and copy_abbrev_memo : From.abbrev_memo -> To.abbrev_memo = function
 and copy_row_field : From.row_field -> To.row_field = function
   | Rpresent param_1 -> Rpresent (Option.map copy_type_expr param_1)
   | Reither (param_1, param_2, param_3, param_4) ->
-      Reither (param_1, List.map copy_type_expr param_2, param_3, param_4)
+      Reither
+        ( param_1,
+          List.map copy_type_expr param_2,
+          param_3,
+          ref (Option.map copy_row_field !param_4) )
   | Rabsent -> Rabsent
 
 and copy_fixed_explanation : From.fixed_explanation -> To.fixed_explanation =
@@ -441,19 +535,25 @@ and copy_row_desc : From.row_desc -> To.row_desc =
        row_name = param_6;
      } ->
   {
-    row_fields = param_1;
+    row_fields =
+      List.map
+        (fun (label, row_field) -> (label, copy_row_field row_field))
+        param_1;
     row_more = copy_type_expr param_2;
     row_bound = param_3;
     row_closed = param_4;
     row_fixed = Option.map copy_fixed_explanation param_5;
-    row_name = param_6;
+    row_name =
+      Option.map
+        (fun (path, typ) -> (path, List.map copy_type_expr typ))
+        param_6;
   }
 
 and copy_type_desc : From.type_desc -> To.type_desc = function
   | Tvar param_1 -> Tvar param_1
   | Tarrow (param_1, param_2, param_3, param_4) ->
       Tarrow
-        ( param_1,
+        ( Asttypes.copy_arg_label param_1,
           copy_type_expr param_2,
           copy_type_expr param_3,
           copy_commutable param_4 )
@@ -463,7 +563,13 @@ and copy_type_desc : From.type_desc -> To.type_desc = function
         ( param_1,
           List.map copy_type_expr param_2,
           ref (copy_abbrev_memo !param_3) )
-  | Tobject (param_1, param_2) -> Tobject (copy_type_expr param_1, param_2)
+  | Tobject (param_1, param_2) ->
+      Tobject
+        ( copy_type_expr param_1,
+          ref
+            (Option.map
+               (fun (path, typ) -> (path, List.map copy_type_expr typ))
+               !param_2) )
   | Tfield (param_1, param_2, param_3, param_4) ->
       Tfield
         ( param_1,
@@ -472,19 +578,48 @@ and copy_type_desc : From.type_desc -> To.type_desc = function
           copy_type_expr param_4 )
   | Tnil -> Tnil
   | Tlink param_1 -> Tlink (copy_type_expr param_1)
-  | Tsubst (param_1, param_2) ->
+  | Tsubst param_1 ->
+      let param_2 =
+        (* from btype.ml*)
+        let rec field_kind_repr = function
+          | From.Fvar { contents = Some kind } -> field_kind_repr kind
+          | kind -> kind
+        in
+
+        let rec repr_link _compress t _d = function
+          | { From.desc = Tlink t' as d'; _ } -> repr_link true t d' t'
+          | { desc = Tfield (_, k, _, t') as d'; _ }
+            when field_kind_repr k = Fabsent ->
+              repr_link true t d' t'
+          | t' -> t'
+        in
+
+        let repr t =
+          match t.From.desc with
+          | Tlink t' as d -> repr_link false t d t'
+          | Tfield (_, k, _, t') as d when field_kind_repr k = Fabsent ->
+              repr_link false t d t'
+          | _ -> t
+        in
+        (* https://github.com/ocaml/ocaml/commit/13fb9573a6e67236bfa21ee8c65902644cd14a6d *)
+        (* TODO: is this change even needed? If so, is it right? *)
+        match (repr param_1).desc with
+        | Tvariant row0 -> (
+            match (repr row0.row_more).desc with
+            | Tsubst { desc = Ttuple [ _; ty2 ]; _ } -> Some ty2
+            | _ -> None)
+        | _ -> None
+      in
       Tsubst (copy_type_expr param_1, Option.map copy_type_expr param_2)
   | Tvariant param_1 -> Tvariant (copy_row_desc param_1)
   | Tunivar param_1 -> Tunivar param_1
   | Tpoly (param_1, param_2) ->
       Tpoly (copy_type_expr param_1, List.map copy_type_expr param_2)
-  | Tpackage (param_1, param_2) -> Tpackage (param_1, param_2)
+  | Tpackage (param_1, param_2, param_3) ->
+      Tpackage (param_1, List.combine param_2 (List.map copy_type_expr param_3))
 
 and copy_type_expr : From.type_expr -> To.type_expr =
- fun { desc = param_1; level = param_2; scope = param_3; id = param_4 } ->
-  {
-    desc = copy_type_desc param_1;
-    level = param_2;
-    scope = param_3;
-    id = param_4;
-  }
+ fun { desc = param_1; level; scope; id } ->
+  To.Private_type_expr.create ~level ~scope ~id (copy_type_desc param_1)
+
+and copy_signature signature = List.map copy_signature_item signature
