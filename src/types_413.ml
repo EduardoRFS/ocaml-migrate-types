@@ -13,12 +13,12 @@
 (*                                                                        *)
 (**************************************************************************)
 [@@@ocaml.warning "-9"]
-[%%if ocaml_version >= (4, 12, 0) && ocaml_version < (4, 13, 0)]
+[%%if ocaml_version >= (4, 13, 0) && ocaml_version < (4, 14, 0)]
 module Types = Types
 [%%else]
 module Types = struct
 module Ocaml_config = Config
-open Migrate_parsetree.Ast_412
+open Migrate_parsetree.Ast_413
 
 module Type_immediacy = Type_immediacy_412
 (* Representation of types and declarations *)
@@ -42,11 +42,11 @@ and type_desc =
   | Tfield of string * field_kind * type_expr * type_expr
   | Tnil
   | Tlink of type_expr
-  | Tsubst of type_expr         (* for copying *)
+  | Tsubst of type_expr * type_expr option
   | Tvariant of row_desc
   | Tunivar of string option
   | Tpoly of type_expr * type_expr list
-  | Tpackage of Path.t * Longident.t list * type_expr list
+  | Tpackage of Path.t * (Longident.t * type_expr) list
 
 and row_desc =
     { row_fields: (label * row_field) list;
@@ -87,14 +87,18 @@ module TypeOps = struct
   let equal t1 t2 = t1 == t2
 end
 
+module Private_type_expr = struct
+  let create desc ~level ~scope ~id = {desc; level; scope; id}
+  let set_desc ty d = ty.desc <- d
+  let set_level ty lv = ty.level <- lv
+  let set_scope ty sc = ty.scope <- sc
+end
 (* *)
 
-[%%if ocaml_version < (4, 12, 0)]
-module Uid = Types_411.Types.Uid
-[%%endif]
-
-[%%if ocaml_version >= (4, 13, 0)]
+[%%if ocaml_version < (4, 13, 0)]
 module Uid = Types_413.Types.Uid
+[%%elseif ocaml_version >= (4, 14, 0)]
+module Uid = Types_414.Types.Uid
 [%%else]
 module Uid = struct
   type t =
@@ -230,7 +234,7 @@ module Separability = struct
       (Format.pp_print_list ~pp_sep print) modes
 
   let default_signature ~arity =
-    let default_mode = if Ocaml_config.flat_float_array then Deepsep else Ind in
+    let default_mode = if Config.flat_float_array then Deepsep else Ind in
     Misc.replicate_list default_mode arity
 end
 
@@ -239,7 +243,7 @@ end
 type type_declaration =
   { type_params: type_expr list;
     type_arity: int;
-    type_kind: type_kind;
+    type_kind: type_decl_kind;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -249,14 +253,16 @@ type type_declaration =
     type_loc: Location.t;
     type_attributes: Parsetree.attributes;
     type_immediate: Type_immediacy.t;
-    type_unboxed: unboxed_status;
+    type_unboxed_default: bool;
     type_uid: Uid.t;
  }
 
-and type_kind =
+and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+
+and ('lbl, 'cstr) type_kind =
     Type_abstract
-  | Type_record of label_declaration list  * record_representation
-  | Type_variant of constructor_declaration list
+  | Type_record of 'lbl list * record_representation
+  | Type_variant of 'cstr list * variant_representation
   | Type_open
 
 and record_representation =
@@ -265,6 +271,10 @@ and record_representation =
   | Record_unboxed of bool    (* Unboxed single-field record, inlined or not *)
   | Record_inlined of int               (* Inlined record *)
   | Record_extension of Path.t          (* Inlined record under extension *)
+
+and variant_representation =
+    Variant_regular          (* Constant or boxed constructors *)
+  | Variant_unboxed          (* One unboxed single-field constructor *)
 
 and label_declaration =
   {
@@ -289,17 +299,6 @@ and constructor_declaration =
 and constructor_arguments =
   | Cstr_tuple of type_expr list
   | Cstr_record of label_declaration list
-
-and unboxed_status =
-  {
-    unboxed: bool;
-    default: bool; (* False if the unboxed field was set from an attribute. *)
-  }
-
-let unboxed_false_default_false = {unboxed = false; default = false}
-let unboxed_false_default_true = {unboxed = false; default = true}
-let unboxed_true_default_false = {unboxed = true; default = false}
-let unboxed_true_default_true = {unboxed = true; default = true}
 
 type extension_constructor =
   { ext_type_path: Path.t;
