@@ -10,6 +10,6 @@
   (ocaml
    (and
     (>= "4.08.0")
-    (< "4.13.0")))
+    (< "4.14.0")))
   ocaml-migrate-parsetree
   ppx_optcomp))

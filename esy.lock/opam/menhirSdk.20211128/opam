@@ -1,3 +1,4 @@
+
 opam-version: "2.0"
 maintainer: "francois.pottier@inria.fr"
 authors: [
@@ -7,13 +8,13 @@ authors: [
 homepage: "http://gitlab.inria.fr/fpottier/menhir"
 dev-repo: "git+https://gitlab.inria.fr/fpottier/menhir.git"
 bug-reports: "https://gitlab.inria.fr/fpottier/menhir/-/issues"
-license: "LGPL-2.0-only WITH OCaml-LGPL-linking-exception"
+license: "LGPL-2.0-only with OCaml-LGPL-linking-exception"
 build: [
   ["dune" "build" "-p" name "-j" jobs]
 ]
 depends: [
-  "ocaml"  { >= "4.02.3" }
-  "dune"   { >= "2.0.0"  }
+  "ocaml"  { >= "4.03.0" }
+  "dune"   { >= "2.8.0"  }
 ]
 conflicts: [
   "menhir" { != version  }
@@ -21,9 +22,9 @@ conflicts: [
 synopsis: "Compile-time library for auxiliary tools related to Menhir"
 url {
   src:
-    "https://gitlab.inria.fr/fpottier/menhir/-/archive/20210419/archive.tar.gz"
+    "https://gitlab.inria.fr/fpottier/menhir/-/archive/20211128/archive.tar.gz"
   checksum: [
-    "md5=1af2d137eb20811c74ca516500164fd4"
-    "sha512=37a88b3ea0bde6089e5fbf0c1f10c1867c4edcd033ed3d5b75e7ed93e14ddd4f4c4db96baf638a054f65e294b83411497615c7fc14c6ff3a2a007e70f9d12c98"
+    "md5=015354590ebce7911b073beae57e7731"
+    "sha512=76f998c114a29b390f05e7b62e396d6957e748be3bb7fe918893ab3471a7a907764de4610e392916553113df0c6b09aa570425dcf86c6a3e9e17b0ae36f3fe2b"
   ]
 }
