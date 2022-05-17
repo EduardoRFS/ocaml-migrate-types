@@ -361,7 +361,15 @@ val match_row_field:
 
 (* *)
 
-module Uid = Shape.Uid
+[%%if ocaml_version < (4, 14, 0)]
+module Uid = Types_413.Types.Uid
+[%%else]
+[%%if ocaml_version >= (4, 15, 0)]
+module Uid = Types_415.Types.Uid
+[%%else]
+module Uid = Shape_414.Uid
+[%%endif]
+[%%endif]
 
 (* Sets and maps of methods and instance variables *)
 
