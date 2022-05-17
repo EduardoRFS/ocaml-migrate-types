@@ -181,3 +181,4 @@ let signature = Ocaml_common.Pparse.parse_interface ~tool_name:"<none>" file
 let () =
   Format.printf "%a\n%!" Pprintast.structure_item
     (From_signature.structure_item signature)
+

@@ -1,0 +1,11 @@
+(executable
+ (name tests)
+ (libraries migrate_types)
+ (preprocess
+  (staged_pps ppxlib.metaquot ppx_import ppx_deriving.show)))
+
+(rule
+ (alias runtest)
+ (deps ./tests.exe)
+ (action
+  (run ./tests.exe)))

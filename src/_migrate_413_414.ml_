@@ -1,5 +1,5 @@
-module From = Types_412.Types
-module To = Types_413.Types
+module From = Types_413.Types
+module To = Types_414.Types
 
 module Uid = struct
   let copy_t : From.Uid.t -> To.Uid.t = fun v -> v
@@ -26,11 +26,6 @@ module Separability = struct
     | Deepsep -> Deepsep
 end
 
-module Concr = struct
-  let copy_t : From.Concr.t -> To.Concr.t =
-   fun param -> From.Concr.to_seq param |> To.Concr.of_seq
-end
-
 module Vars = struct
   let copy_t : 'a From.Vars.t -> 'a To.Vars.t =
    fun param -> From.Vars.bindings param |> List.to_seq |> To.Vars.of_seq
@@ -43,17 +38,17 @@ end
 
 module Asttypes = struct
   open Migrate_parsetree
-  let copy_mutable_flag = Migrate_412_413.copy_mutable_flag
+  let copy_mutable_flag = Migrate_413_414.copy_mutable_flag
 
-  let copy_private_flag = Migrate_412_413.copy_private_flag
+  let copy_private_flag = Migrate_413_414.copy_private_flag
 
-  let copy_arg_label = Migrate_412_413.copy_arg_label
+  let copy_arg_label = Migrate_413_414.copy_arg_label
 
-  let copy_virtual_flag = Migrate_412_413.copy_virtual_flag
+  let copy_virtual_flag = Migrate_413_414.copy_virtual_flag
 end
 
 module Parsetree = struct
-  let copy_attributes = Migrate_parsetree.Migrate_412_413.copy_attributes
+  let copy_attributes = Migrate_parsetree.Migrate_413_414.copy_attributes
 end
 
 module Type_immediacy = struct
@@ -109,7 +104,8 @@ and copy_constructor_description :
        cstr_tag = param_6;
        cstr_consts = param_7;
        cstr_nonconsts = param_8;
-       cstr_normal = param_9;
+       (* https://github.com/ocaml/ocaml/commit/650ba029a5c1c3e9f2edc8cacd30ff27d3184348a *)
+       cstr_normal = _param_9;
        cstr_generalized = param_10;
        cstr_private = param_11;
        cstr_loc = param_12;
@@ -126,7 +122,6 @@ and copy_constructor_description :
     cstr_tag = copy_constructor_tag param_6;
     cstr_consts = param_7;
     cstr_nonconsts = param_8;
-    cstr_normal = param_9;
     cstr_generalized = param_10;
     cstr_private = Asttypes.copy_private_flag param_11;
     cstr_loc = param_12;
@@ -281,7 +276,7 @@ and copy_class_signature : From.class_signature -> To.class_signature =
        csig_self = param_1;
        csig_vars = param_2;
        csig_concr = param_3;
-       csig_inher = param_4;
+       csig_inher = _param_4;
      } ->
   {
     csig_self = copy_type_expr param_1;
@@ -293,11 +288,7 @@ and copy_class_signature : From.class_signature -> To.class_signature =
                Asttypes.copy_virtual_flag virt,
                copy_type_expr typ ))
            param_2);
-    csig_concr = Concr.copy_t param_3;
-    csig_inher =
-      List.map
-        (fun (path, typs) -> (path, List.map copy_type_expr typs))
-        param_4;
+    csig_meths = csig_concr = Concr.copy_t param_3;
   }
 
 and copy_class_type : From.class_type -> To.class_type = function
@@ -390,23 +381,21 @@ and copy_record_representation :
   | Record_inlined param_1 -> Record_inlined param_1
   | Record_extension param_1 -> Record_extension param_1
 
-and copy_type_decl_kind : unboxed:bool -> From.type_kind -> To.type_decl_kind =
- fun ~unboxed -> function
+and copy_variant_representation :
+    From.variant_representation -> To.variant_representation = function
+  | Variant_regular -> Variant_regular
+  | Variant_unboxed -> Variant_unboxed
+
+and copy_type_decl_kind : From.type_decl_kind -> To.type_decl_kind = function
   | Type_abstract -> Type_abstract
   | Type_record (param_1, param_2) ->
-      (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
-      (match (unboxed, param_2) with
-      | true, Record_unboxed _ -> ()
-      | true, _ | false, Record_unboxed _ -> assert false
-      | false, _ -> ());
       Type_record
         ( List.map copy_label_declaration param_1,
           copy_record_representation param_2 )
-  | Type_variant param_1 ->
+  | Type_variant (param_1, param_2) ->
       Type_variant
         ( List.map copy_constructor_declaration param_1,
-          (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
-          if unboxed then Variant_unboxed else Variant_regular )
+          copy_variant_representation param_2 )
   | Type_open -> Type_open
 
 and copy_type_declaration : From.type_declaration -> To.type_declaration =
@@ -423,13 +412,13 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
        type_loc = param_10;
        type_attributes = param_11;
        type_immediate = param_12;
-       type_unboxed = param_13;
+       type_unboxed_default = param_13;
        type_uid = param_14;
      } ->
   {
     type_params = List.map copy_type_expr param_1;
     type_arity = param_2;
-    type_kind = copy_type_decl_kind ~unboxed:param_13.unboxed param_3;
+    type_kind = copy_type_decl_kind param_3;
     type_private = Asttypes.copy_private_flag param_4;
     type_manifest = Option.map copy_type_expr param_5;
     type_variance = List.map Variance.copy_t param_6;
@@ -439,8 +428,7 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
     type_loc = param_10;
     type_attributes = Parsetree.copy_attributes param_11;
     type_immediate = Type_immediacy.copy_t param_12;
-    (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
-    type_unboxed_default = param_13.default;
+    type_unboxed_default = param_13;
     type_uid = Uid.copy_t param_14;
   }
 

@@ -11,10 +11,11 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
 [%%if ocaml_version >= (4, 13, 0) && ocaml_version < (4, 14, 0)]
 include Type_immediacy
 [%%else];;
-
+  
 type t =
   | Unknown
   | Always
