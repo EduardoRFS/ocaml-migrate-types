@@ -1,5 +1,6 @@
-module From = Types_412.Types
-module To = Types_413.Types
+module From = Types_413.Types
+module To = Types_414.Types
+module To_ast = Migrate_parsetree.Ast_414
 
 module Uid = struct
   let copy_t : From.Uid.t -> To.Uid.t = fun v -> v
@@ -26,38 +27,28 @@ module Separability = struct
     | Deepsep -> Deepsep
 end
 
-module Concr = struct
-  let copy_t : From.Concr.t -> To.Concr.t =
-   fun param -> From.Concr.to_seq param |> To.Concr.of_seq
-end
-
 module Vars = struct
   let copy_t : 'a From.Vars.t -> 'a To.Vars.t =
    fun param -> From.Vars.bindings param |> List.to_seq |> To.Vars.of_seq
 end
 
-module Meths = struct
-  let copy_t : 'a From.Meths.t -> 'a To.Meths.t =
-   fun param -> From.Meths.bindings param |> List.to_seq |> To.Meths.of_seq
-end
-
 module Asttypes = struct
   open Migrate_parsetree
-  let copy_mutable_flag = Migrate_412_413.copy_mutable_flag
+  let copy_mutable_flag = Migrate_413_414.copy_mutable_flag
 
-  let copy_private_flag = Migrate_412_413.copy_private_flag
+  let copy_private_flag = Migrate_413_414.copy_private_flag
 
-  let copy_arg_label = Migrate_412_413.copy_arg_label
+  let copy_arg_label = Migrate_413_414.copy_arg_label
 
-  let copy_virtual_flag = Migrate_412_413.copy_virtual_flag
+  let copy_virtual_flag = Migrate_413_414.copy_virtual_flag
 end
 
 module Parsetree = struct
-  let copy_attributes = Migrate_parsetree.Migrate_412_413.copy_attributes
+  let copy_attributes = Migrate_parsetree.Migrate_413_414.copy_attributes
 end
 
 module Type_immediacy = struct
-  let copy_t : Type_immediacy_412.t -> Type_immediacy_413.t = function
+  let copy_t : Type_immediacy_413.t -> Type_immediacy_414.t = function
     | Unknown -> Unknown
     | Always -> Always
     | Always_on_64bits -> Always_on_64bits
@@ -109,7 +100,8 @@ and copy_constructor_description :
        cstr_tag = param_6;
        cstr_consts = param_7;
        cstr_nonconsts = param_8;
-       cstr_normal = param_9;
+       (* https://github.com/ocaml/ocaml/commit/650ba029a5c1c3e9f2edc8cacd30ff27d3184348a *)
+       cstr_normal = _param_9;
        cstr_generalized = param_10;
        cstr_private = param_11;
        cstr_loc = param_12;
@@ -126,7 +118,6 @@ and copy_constructor_description :
     cstr_tag = copy_constructor_tag param_6;
     cstr_consts = param_7;
     cstr_nonconsts = param_8;
-    cstr_normal = param_9;
     cstr_generalized = param_10;
     cstr_private = Asttypes.copy_private_flag param_11;
     cstr_loc = param_12;
@@ -281,10 +272,35 @@ and copy_class_signature : From.class_signature -> To.class_signature =
        csig_self = param_1;
        csig_vars = param_2;
        csig_concr = param_3;
-       csig_inher = param_4;
+       csig_inher = _param_4;
      } ->
+  let rec repr typ =
+    match typ.From.desc with Tlink typ -> repr typ | _ -> typ
+  in
+  let rec into_meths meths typ =
+    match (repr typ).From.desc with
+    | Tnil -> meths
+    | Tfield ("*dummy method*", _, _, ts) -> into_meths meths ts
+    | Tfield (name, _field_kind, typ, ts) ->
+        let typ = copy_type_expr typ in
+        let concr =
+          if From.Concr.mem name param_3 then To_ast.Asttypes.Concrete
+          else Virtual
+        in
+        (* TODO: I assume that externally it's always public *)
+        let meths = To.Meths.add name (To.Mpublic, concr, typ) meths in
+        into_meths meths ts
+    | _ -> assert false
+  in
+  let meths =
+    match (repr param_1).desc with
+    | Tobject (typ, _) -> into_meths To.Meths.empty typ
+    | _ -> assert false
+  in
   {
     csig_self = copy_type_expr param_1;
+    (* from what I understand this variable is only used during typing *)
+    csig_self_row = Obj.magic 0;
     csig_vars =
       Vars.copy_t
         (From.Vars.map
@@ -293,11 +309,7 @@ and copy_class_signature : From.class_signature -> To.class_signature =
                Asttypes.copy_virtual_flag virt,
                copy_type_expr typ ))
            param_2);
-    csig_concr = Concr.copy_t param_3;
-    csig_inher =
-      List.map
-        (fun (path, typs) -> (path, List.map copy_type_expr typs))
-        param_4;
+    csig_meths = meths;
   }
 
 and copy_class_type : From.class_type -> To.class_type = function
@@ -390,23 +402,21 @@ and copy_record_representation :
   | Record_inlined param_1 -> Record_inlined param_1
   | Record_extension param_1 -> Record_extension param_1
 
-and copy_type_decl_kind : unboxed:bool -> From.type_kind -> To.type_decl_kind =
- fun ~unboxed -> function
+and copy_variant_representation :
+    From.variant_representation -> To.variant_representation = function
+  | Variant_regular -> Variant_regular
+  | Variant_unboxed -> Variant_unboxed
+
+and copy_type_decl_kind : From.type_decl_kind -> To.type_decl_kind = function
   | Type_abstract -> Type_abstract
   | Type_record (param_1, param_2) ->
-      (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
-      (match (unboxed, param_2) with
-      | true, Record_unboxed _ -> ()
-      | true, _ | false, Record_unboxed _ -> assert false
-      | false, _ -> ());
       Type_record
         ( List.map copy_label_declaration param_1,
           copy_record_representation param_2 )
-  | Type_variant param_1 ->
+  | Type_variant (param_1, param_2) ->
       Type_variant
         ( List.map copy_constructor_declaration param_1,
-          (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
-          if unboxed then Variant_unboxed else Variant_regular )
+          copy_variant_representation param_2 )
   | Type_open -> Type_open
 
 and copy_type_declaration : From.type_declaration -> To.type_declaration =
@@ -423,13 +433,13 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
        type_loc = param_10;
        type_attributes = param_11;
        type_immediate = param_12;
-       type_unboxed = param_13;
+       type_unboxed_default = param_13;
        type_uid = param_14;
      } ->
   {
     type_params = List.map copy_type_expr param_1;
     type_arity = param_2;
-    type_kind = copy_type_decl_kind ~unboxed:param_13.unboxed param_3;
+    type_kind = copy_type_decl_kind param_3;
     type_private = Asttypes.copy_private_flag param_4;
     type_manifest = Option.map copy_type_expr param_5;
     type_variance = List.map Variance.copy_t param_6;
@@ -439,35 +449,22 @@ and copy_type_declaration : From.type_declaration -> To.type_declaration =
     type_loc = param_10;
     type_attributes = Parsetree.copy_attributes param_11;
     type_immediate = Type_immediacy.copy_t param_12;
-    (* https://github.com/ocaml/ocaml/commit/1820718aa10139911f07a09d8a2f7783a5aca2a0 *)
-    type_unboxed_default = param_13.default;
+    type_unboxed_default = param_13;
     type_uid = Uid.copy_t param_14;
   }
 
 and copy_value_kind : From.value_kind -> To.value_kind = function
+  (* TODO: check this function *)
   | Val_reg -> Val_reg
   | Val_prim param_1 -> Val_prim param_1
   | Val_ivar (param_1, param_2) ->
       Val_ivar (Asttypes.copy_mutable_flag param_1, param_2)
-  | Val_self (param_1, param_2, param_3, param_4) ->
-      Val_self
-        ( ref
-            (Meths.copy_t
-               (From.Meths.map
-                  (fun (ident, typ) -> (ident, copy_type_expr typ))
-                  !param_1)),
-          ref
-            (Vars.copy_t
-               (From.Vars.map
-                  (fun (ident, mut, virt, typ) ->
-                    ( ident,
-                      Asttypes.copy_mutable_flag mut,
-                      Asttypes.copy_virtual_flag virt,
-                      copy_type_expr typ ))
-                  !param_2)),
-          param_3,
-          copy_type_expr param_4 )
-  | Val_anc (param_1, param_2) -> Val_anc (param_1, param_2)
+  | Val_self _ ->
+      (* TODO: used only by Env, not on cmi *)
+      assert false
+  | Val_anc _ ->
+      (* TODO: used only by Env, not on cmi *)
+      assert false
 
 and copy_value_description : From.value_description -> To.value_description =
  fun {
@@ -486,14 +483,18 @@ and copy_value_description : From.value_description -> To.value_description =
   }
 
 and copy_commutable : From.commutable -> To.commutable = function
-  | Cok -> Cok
-  | Cunknown -> Cunknown
-  | Clink param_1 -> Clink (ref (copy_commutable !param_1))
+  (* TODO: validate this function *)
+  | Cok -> To.commu_ok
+  | Cunknown -> assert false
+  | Clink { contents = Cunknown } -> To.commu_var ()
+  | Clink { contents } -> copy_commutable contents
 
 and copy_field_kind : From.field_kind -> To.field_kind = function
-  | Fvar param_1 -> Fvar (ref (Option.map copy_field_kind !param_1))
-  | Fpresent -> Fpresent
-  | Fabsent -> Fabsent
+  (* TODO: validate this function *)
+  | Fvar { contents = None } -> To.field_private ()
+  | Fvar { contents = Some field_kind } -> copy_field_kind field_kind
+  | Fpresent -> To.field_public
+  | Fabsent -> To.field_absent
 
 and copy_abbrev_memo : From.abbrev_memo -> To.abbrev_memo = function
   | Mnil -> Mnil
@@ -507,14 +508,12 @@ and copy_abbrev_memo : From.abbrev_memo -> To.abbrev_memo = function
   | Mlink param_1 -> Mlink (ref (copy_abbrev_memo !param_1))
 
 and copy_row_field : From.row_field -> To.row_field = function
-  | Rpresent param_1 -> Rpresent (Option.map copy_type_expr param_1)
+  | Rpresent param_1 -> To.rf_present (Option.map copy_type_expr param_1)
   | Reither (param_1, param_2, param_3, param_4) ->
-      Reither
-        ( param_1,
-          List.map copy_type_expr param_2,
-          param_3,
-          ref (Option.map copy_row_field !param_4) )
-  | Rabsent -> Rabsent
+      let param_4 = Option.map copy_row_field !param_4 in
+      let param_2 = List.map copy_type_expr param_2 in
+      To.rf_either ?use_ext_of:param_4 ~no_arg:param_1 param_2 ~matched:param_3
+  | Rabsent -> To.rf_absent
 
 and copy_fixed_explanation : From.fixed_explanation -> To.fixed_explanation =
   function
@@ -527,25 +526,22 @@ and copy_row_desc : From.row_desc -> To.row_desc =
  fun {
        row_fields = param_1;
        row_more = param_2;
-       row_bound = param_3;
+       row_bound = _param_3;
        row_closed = param_4;
        row_fixed = param_5;
        row_name = param_6;
      } ->
-  {
-    row_fields =
-      List.map
-        (fun (label, row_field) -> (label, copy_row_field row_field))
-        param_1;
-    row_more = copy_type_expr param_2;
-    row_bound = param_3;
-    row_closed = param_4;
-    row_fixed = Option.map copy_fixed_explanation param_5;
-    row_name =
-      Option.map
-        (fun (path, typ) -> (path, List.map copy_type_expr typ))
-        param_6;
-  }
+  let fields =
+    List.map
+      (fun (label, row_field) -> (label, copy_row_field row_field))
+      param_1
+  in
+  let more = copy_type_expr param_2 in
+  let fixed = Option.map copy_fixed_explanation param_5 in
+  let name =
+    Option.map (fun (path, typ) -> (path, List.map copy_type_expr typ)) param_6
+  in
+  To.create_row ~fields ~more ~closed:param_4 ~fixed ~name
 
 and copy_type_desc : From.type_desc -> To.type_desc = function
   | Tvar param_1 -> Tvar param_1
@@ -576,49 +572,19 @@ and copy_type_desc : From.type_desc -> To.type_desc = function
           copy_type_expr param_4 )
   | Tnil -> Tnil
   | Tlink param_1 -> Tlink (copy_type_expr param_1)
-  | Tsubst param_1 ->
-      let param_2 =
-        (* from btype.ml*)
-        let rec field_kind_repr = function
-          | From.Fvar { contents = Some kind } -> field_kind_repr kind
-          | kind -> kind
-        in
-
-        let rec repr_link _compress t _d = function
-          | { From.desc = Tlink t' as d'; _ } -> repr_link true t d' t'
-          | { desc = Tfield (_, k, _, t') as d'; _ }
-            when field_kind_repr k = Fabsent ->
-              repr_link true t d' t'
-          | t' -> t'
-        in
-
-        let repr t =
-          match t.From.desc with
-          | Tlink t' as d -> repr_link false t d t'
-          | Tfield (_, k, _, t') as d when field_kind_repr k = Fabsent ->
-              repr_link false t d t'
-          | _ -> t
-        in
-        (* https://github.com/ocaml/ocaml/commit/13fb9573a6e67236bfa21ee8c65902644cd14a6d *)
-        (* TODO: is this change even needed? If so, is it right? *)
-        match (repr param_1).desc with
-        | Tvariant row0 -> (
-            match (repr row0.row_more).desc with
-            | Tsubst { desc = Ttuple [ _; ty2 ]; _ } -> Some ty2
-            | _ -> None)
-        | _ -> None
-      in
+  | Tsubst (param_1, param_2) ->
       Tsubst (copy_type_expr param_1, Option.map copy_type_expr param_2)
   | Tvariant param_1 -> Tvariant (copy_row_desc param_1)
   | Tunivar param_1 -> Tunivar param_1
   | Tpoly (param_1, param_2) ->
       Tpoly (copy_type_expr param_1, List.map copy_type_expr param_2)
-  | Tpackage (param_1, param_2, param_3) ->
-      Tpackage (param_1, List.combine param_2 (List.map copy_type_expr param_3))
+  | Tpackage (param_1, param_2) ->
+      Tpackage
+        (param_1, List.map (fun (lid, ty) -> (lid, copy_type_expr ty)) param_2)
 
 and copy_type_expr : From.type_expr -> To.type_expr =
  fun { desc = param_1; level; scope; id } ->
   (* TODO: is this okay, OCaml uses physical identity for interface types? *)
-  To.Private_type_expr.create ~level ~scope ~id (copy_type_desc param_1)
+  To.create_expr ~level ~scope ~id (copy_type_desc param_1)
 
 and copy_signature signature = List.map copy_signature_item signature
