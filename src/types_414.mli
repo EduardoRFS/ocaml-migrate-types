@@ -368,7 +368,7 @@ module Uid = Types_413.Types.Uid
 [%%if ocaml_version >= (4, 15, 0)]
 module Uid = Types_415.Types.Uid
 [%%else] *)
-module Uid = Shape_414.Uid
+module Uid = Shape_414.Shape.Uid
 (* [%%endif] *)
 [%%endif]
 
